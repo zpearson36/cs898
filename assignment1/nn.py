@@ -3,7 +3,7 @@ import random
 
 
 class ActivationFunction:
-    function_list = ["sigmoid"]
+    function_list = ["sigmoid", "softmax"]
     
     def __init__(self, function):
         assert function in self.function_list
@@ -11,9 +11,15 @@ class ActivationFunction:
         self.function = function
 
     def value(self, val):
-        retval = None
+        retval = []
         if self.function == "sigmoid":
-            retval = 1/(1 + np.exp(-val))
+            for elmt in val:
+                retval.append(1/(1 + np.exp(-val)))
+        if self.function == "softmax":
+            shift = val - np.max(val)
+            exp = np.exp(val)
+            retval = exp / np.sum(exp)
+                
 
         return retval
 
@@ -43,9 +49,8 @@ class Layer:
         after_bias = []
         for elmt, bias in zip(mat, self.biases):
             after_bias.append(elmt + bias)
-        output = []
-        for elmt in after_bias:
-            output.append(self.activation.value(elmt))
+
+        output = self.activation.value(after_bias)
 
         return np.array(output)
     
@@ -89,7 +94,7 @@ class Brain:
 if __name__ == "__main__":
     def f(n):
         return 2*n
-    a_func = ActivationFunction("sigmoid")
+    a_func = ActivationFunction("softmax")
     l = Layer(5, 3, a_func)
     l2 = Layer(5, 5, a_func)
     l3 = Layer(1, 5, a_func)

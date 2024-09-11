@@ -9,3 +9,6 @@ https://www.kaggle.com/datasets/oddrationale/mnist-in-csv
 
 the softmax function and its derivative by eli bendersky
 https://eli.thegreenplace.net/2016/the-softmax-function-and-its-derivative/
+
+understanding catgorical cross entropy:
+https://gombru.github.io/2018/05/23/cross_entropy_loss/

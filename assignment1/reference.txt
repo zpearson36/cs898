@@ -1,0 +1,29 @@
+TensorFlow 2 quickstart for experts
+https://www.tensorflow.org/tutorials/quickstart/advanced
+
+Base Metric class - Keras
+https://keras.io/api/metrics/base_metric/
+
+tf.keras.Model
+https://www.tensorflow.org/api_docs/python/tf/keras/Model
+
+matplotlib.pyplot.legend
+https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.legend.html
+
+How to save a plot to a file using Matplotlib  - AJ Welch
+https://www.atlassian.com/data/notebook/how-to-save-a-plot-to-a-file-using-matplotlib
+
+Save, serialize, and export models - Neel Kovelamudi, Francois Chollet
+https://www.tensorflow.org/guide/keras/serialization_and_saving
+
+tf.keras.datasets.mnist.load_data
+https://www.tensorflow.org/api_docs/python/tf/keras/datasets/mnist/load_data
+
+Model training APIs
+https://keras.io/api/models/model_training_apis/
+
+TensorFlow Training models
+https://www.tensorflow.org/js/guide/train_models
+
+Keras Dense layer
+https://keras.io/api/layers/core_layers/dense/

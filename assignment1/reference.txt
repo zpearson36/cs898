@@ -27,3 +27,6 @@ https://www.tensorflow.org/js/guide/train_models
 
 Keras Dense layer
 https://keras.io/api/layers/core_layers/dense/
+
+state-of-the-art accuracy for mnist
+https://paperswithcode.com/sota/image-classification-on-mnist

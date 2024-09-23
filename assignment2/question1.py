@@ -2,8 +2,10 @@ import tensorflow as tf
 
 model = tf.keras.models.Sequential([
     tf.keras.layers.Conv2D(32,5,(1,1),'same', activation="relu", input_shape=(32,32,3)),
+    tf.keras.layers.BatchNormalization(),
     tf.keras.layers.MaxPool2D((2,2)),
     tf.keras.layers.Conv2D(64,3,(1,1),'same', activation="relu"),
+    tf.keras.layers.BatchNormalization(),
     tf.keras.layers.MaxPool2D((2,2)),
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dense(units=512,activation="relu"),
@@ -51,7 +53,8 @@ history = model.fit(
             validation_split=.2
           )
 print(history.history)
-
+with open("history.json", "w") as f:
+    json.dump(history.history, f)
 results = model.evaluate(
         x=xtest,
         y=ytest,
@@ -60,3 +63,5 @@ results = model.evaluate(
         )
 
 print(results)
+with open("results.json", "w") as f:
+    json.dump(history.history, f)

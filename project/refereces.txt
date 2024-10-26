@@ -12,3 +12,6 @@ https://eli.thegreenplace.net/2016/the-softmax-function-and-its-derivative/
 
 understanding catgorical cross entropy:
 https://gombru.github.io/2018/05/23/cross_entropy_loss/
+
+Implementing Backpropagation in Python: Building a Neural Network from Scratch — Andres Berejnoi:
+https://medium.com/@andresberejnoi/how-to-implement-backpropagation-with-numpy-andres-berejnoi-e7c14f2e683a

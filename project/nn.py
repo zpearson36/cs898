@@ -1,10 +1,12 @@
 import csv
 import numpy as np
 import random
+import time
 
+random.seed(time.time())
 
 class ActivationFunction:
-    function_list = ["sigmoid", "softmax", "relu"]
+    function_list = ["sigmoid", "softmax", "relu", "tanh"]
     
     def __init__(self, function):
         assert function in self.function_list
@@ -23,6 +25,9 @@ class ActivationFunction:
             shift = val - np.max(val)
             exp = np.exp(val)
             retval = exp / np.sum(exp)
+        if self.function == "tanh":
+            for elmt in val:
+                retval.append((np.exp(elmt) - np.exp(-elmt)) / (np.exp(elmt) + np.exp(-elmt)))
                 
 
         return retval
@@ -37,7 +42,7 @@ class ActivationFunction:
                     retval.append(1)
         if self.function == "sigmoid":
             for elmt in val:
-                retval.append(self.value(elmt) * (1 - self.value(elmt)))
+                retval.append(self.value([elmt])[0] * (1 - self.value([elmt])[0]))
         if self.function == "softmax":
             for i, s_i in enumerate(val):
                 retval.append([])
@@ -46,6 +51,9 @@ class ActivationFunction:
                     if i == j:
                         tmp = 1
                     retval[i].append(s_i * (tmp - s_j))
+        if self.function == "tanh":
+            for elmt in val:
+                retval.append(1 - self.value([elmt])[0]**2)
             
 
         return retval
@@ -111,33 +119,40 @@ class Layer:
 
     def __init__(self, node_count, weight_count, a_func,x):
         self.name = f"{x}"
-        self.nodes = np.array([[random.random() for _ in range(weight_count)] for _ in range(node_count)])
+        self.nodes = np.random.uniform(size=(node_count,weight_count))#np.array([[random.randrange(-1,1) for _ in range(weight_count)] for _ in range(node_count)])
         self.activation = a_func
         self.biases = []
         for _ in range(node_count):
             self.biases.append(.5)
         self.outputs_before_activation = []
+        self.activated_derivative = []
         self.activated = []
         self.weight_contribs = []
 
     def forward(self, vals):
-        assert vals.shape[0] == self.nodes.shape[1],f"Shape Mismatch: {vals.shape[0]} | {self.nodes.shape[1]}"
+        assert vals.shape[0] == self.nodes.shape[1], "Shape Mismatch"
         self.outputs_before_activation.append([])
         for i, node in enumerate(self.nodes):
             self.weight_contribs.append([])
-            for n, val in zip(node, vals):
-                t = np.multiply(n, val) + self.biases[i]
+            for weight, val in zip(node, vals):
+                t = np.multiply(weight, val)
                 self.weight_contribs[i].append(t)
 
-            self.outputs_before_activation[-1].append(sum(self.weight_contribs[i]))
+            self.outputs_before_activation[-1].append(sum(self.weight_contribs[i]) + self.biases[i])
 
         output = self.activation.value(self.outputs_before_activation[-1])
+        self.activated_derivative.append(self.activation.derivative(self.outputs_before_activation[-1]))
         self.activated.append(output)
-
+        #print()
+        #print("weight_contribs:", self.weight_contribs)
+        #print("unactivated:    ", len(self.outputs_before_activation))
+        #print("unactivated2:   ", self.outputs_before_activation[-1])
+        #print()
         return np.array(output)
     
     def update_weights(self, amounts):
-        assert amounts.shape == self.nodes.shape
+        assert amounts.shape[0] == self.nodes.shape[1], "shape mismatch"
+        assert amounts.shape[1] == self.nodes.shape[0], "shape mismatch"
 
         self.nodes = np.subtract(self.nodes, amounts)
 
@@ -146,6 +161,7 @@ class Layer:
         self.tmp = []
         self.weight_contribs = []
         self.activated = []
+        self.activated_derivative = []
 
 
 class Brain:
@@ -183,54 +199,40 @@ class Brain:
 
     def train(self, input_data, classification):
         gradients = []
-        for layer in self.layers:
-            gradients.append([])
         for data, actual in zip(input_data, classification):
             output = self.forward(data)
 
+            d_error = np.array(self.loss.derivative(output[-1], actual))
             layer_index = len(self.layers) - 1
-            for gradient, layer in zip(reversed(gradients), reversed(self.layers)):
-                # previous activated values
-                if layer_index == 0:
-                    a = np.array([data])
+            for layer in self.layers[::-1]:
+                d_active = np.array(layer.activated_derivative[-1])
+                if layer_index < len(self.layers) - 1:
+                    d_error = np.dot(delta, self.layers[layer_index + 1].nodes)
+                    delta = d_error * d_active
                 else:
-                    a = np.array(self.layers[layer_index - 1].activated)
-                #a = np.array(self.layers[layer_index].activated)
-                # 
-                b = []
-                for z in layer.weight_contribs:
-                    b.append(np.array(self.activation.derivative(z)))
-                b = np.array(b)
-                #print(layer.activated)
-                #print(classification)
-
-                # error derivative
-                if layer_index == len(self.layers) - 1:
-                    c = np.array(self.loss.derivative(layer.activated, np.array(actual)))
-                else:
-                    c = np.array(self.loss.derivative(layer.activated, np.array(c)))
-                print(layer.name)
-                print(a.shape)
-                print(b.shape)
-                print(c.shape)
-                d = a * c
-                #d = np.multiply(a,b)
-                print(d.shape)
-                #e = np.dot(b.T, d)
-                e = np.multiply(c,d)
-                print(e.shape)
-                #print(np.array(-1*self.learning_rate*(e)))
-                #print(layer.nodes)
-
-                layer_index -= 1
-                print("")
+                    delta = np.array([d_error * d_active])
+                activated = np.transpose(self.layers[layer_index - 1].activated)
+                if layer_index == 0: activated = np.reshape(np.array(data), (len(data),1))
+                grad_matrix = np.dot(activated, delta)
+                gradients.insert(0, grad_matrix)
                 layer.reset_outputs()
+                layer_index -= 1
+
+            # SGD
+            for gradient, layer in zip(gradients, self.layers):
+                for i, row in enumerate(gradient):
+                    for j, col in enumerate(layer.nodes):
+                        col[i] -= row[j] * self.learning_rate
+
+    def clean_layers(self):
+        for layer in self.layers:
+            layer.reset_outputs()
 
 
 if __name__ == "__main__":
     def f(n):
         return n**2
-    a_func = ActivationFunction("relu")
+    a_func = ActivationFunction("tanh")
     l_func = LossFunction("meanSquareError")
     #l_func = LossFunction("categoricalCrossEntropy")
     #d = Data("../.ignore/mnist_train.csv", "csv")
@@ -251,6 +253,20 @@ if __name__ == "__main__":
     d = [[random.choice(_range)] for _ in range(50)]
     c = [[f(n[0])] for n  in d]
 
+    xor_data = [[0,0],[0,1],[1,0],[1,1]]
+    xor_class = [[0],[1],[1],[0]]
+    d = xor_data
+    c = xor_class
 
-    b = Brain(1, [5, 5, 1], a_func, .01, l_func)
-    b.train(np.array(d), np.array(c))
+
+    b = Brain(2, [2, 1], a_func, 1e-1, l_func)
+    for n in d:
+        print(f"f({n}) =",b.forward(np.array(n))[-1])
+        b.clean_layers()
+    print()
+    for _ in range(5000):
+        b.train(np.array(d), np.array(c))
+    for n in d:
+        print(f"f({n}) =",b.forward(np.array(n))[-1])
+        b.clean_layers()
+    #b.train(np.array([[1,1]]),np.array([[1]]))

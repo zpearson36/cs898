@@ -28,8 +28,9 @@ class ActivationFunction:
         if self.function == "tanh":
             for elmt in val:
                 retval.append((np.exp(elmt) - np.exp(-elmt)) / (np.exp(elmt) + np.exp(-elmt)))
+        print("v:", val)
+        print(retval)
                 
-
         return retval
 
     def derivative(self, val):
@@ -67,17 +68,16 @@ class LossFunction:
         self.function = function
 
     def value(self, measured, expected):
+        assert expected.shape == measured.shape, f"{expected.shape} | {measured.shape}"
         loss = None
         if self.function == "meanSquareError":
-            assert expected.shape == measured.shape, f"{expected.shape} | {measured.shape}"
             loss = np.square(measured - expected).mean()
         if self.function == "categoricalCrossEntropy":
-            assert expected.shape == measured.shape, f"{expected.shape} | {measured.shape}"
             loss = []
-            # can be optimized: loss[i] == -log(actual[i])
-            # where expected[i] is the correct class
-            for real, guess in zip(expected, measured):
-                loss.append(-real*np.log(guess))
+            exp = np.exp(measured)
+            exp_sum = np.sum(exp)
+            for guess, real in zip(exp, expected):
+                loss.append(-np.log(exp / exp_sum))
 
         return loss
 
@@ -90,12 +90,13 @@ class LossFunction:
         if self.function == "categoricalCrossEntropy":
             exp = np.exp(measured)
             exp_sum = np.sum(exp)
-            for real, guess in zip(exp, expected):
+            for guess, real in zip(exp, expected):
                 if real == 1:
-                    val.append((exp / exp_sum) -1)
+                    tmp = (guess / exp_sum) -  1
                 else:
-                    val.append(exp / exp_sum)
-
+                    tmp = guess / exp_sum
+                val.append(tmp)
+                print("g:",guess,"r:",real,"t:",tmp,"v",val)
         return val
 
 
@@ -140,9 +141,13 @@ class Layer:
 
             self.outputs_before_activation[-1].append(sum(self.weight_contribs[i]) + self.biases[i])
 
-        output = self.activation.value(self.outputs_before_activation[-1])
-        self.activated_derivative.append(self.activation.derivative(self.outputs_before_activation[-1]))
+        #print(self.nodes.shape, ":",vals, "=>", self.outputs_before_activation[-1])
+        output   = self.activation.value(self.outputs_before_activation[-1])
+        d_output = self.activation.derivative(self.outputs_before_activation[-1])
+        self.activated_derivative.append(d_output)
         self.activated.append(output)
+        print("output:  ",output)
+        print("d_output:",d_output)
         #print()
         #print("weight_contribs:", self.weight_contribs)
         #print("unactivated:    ", len(self.outputs_before_activation))
@@ -206,6 +211,7 @@ class Brain:
             layer_index = len(self.layers) - 1
             for layer in self.layers[::-1]:
                 d_active = np.array(layer.activated_derivative[-1])
+                print("d_active:", d_active)
                 if layer_index < len(self.layers) - 1:
                     d_error = np.dot(delta, self.layers[layer_index + 1].nodes)
                     delta = d_error * d_active
@@ -213,8 +219,16 @@ class Brain:
                     delta = np.array([d_error * d_active])
                 activated = np.transpose(self.layers[layer_index - 1].activated)
                 if layer_index == 0: activated = np.reshape(np.array(data), (len(data),1))
-                grad_matrix = np.dot(activated, delta)
-                gradients.insert(0, grad_matrix)
+                #if self.loss.function != "categoricalCrossEntropy":
+                #print("activated:", activated.shape, "delta:",delta.shape)
+                #print("activated:\n", activated, "\ndelta:\n",delta)
+
+                grad_matrix = activated @ delta
+                #print("activated:\n", activated, "\ndelta:\n",delta, "\ngrad_matrix:\n",grad_matrix)
+                #else:
+                #    grad_matrix = []
+                #    for d in delta[0]
+      #          gradients.insert(0, grad_matrix)
                 layer.reset_outputs()
                 layer_index -= 1
 
@@ -234,6 +248,7 @@ if __name__ == "__main__":
         return n**2
     a_func = ActivationFunction("tanh")
     l_func = LossFunction("meanSquareError")
+    #a_func = ActivationFunction("softmax")
     #l_func = LossFunction("categoricalCrossEntropy")
     #d = Data("../.ignore/mnist_train.csv", "csv")
     #d.show()
@@ -254,17 +269,17 @@ if __name__ == "__main__":
     c = [[f(n[0])] for n  in d]
 
     xor_data = [[0,0],[0,1],[1,0],[1,1]]
-    xor_class = [[0],[1],[1],[0]]
+    xor_class = [[0,1],[1,0],[1,0],[0,1]]
     d = xor_data
     c = xor_class
 
 
-    b = Brain(2, [2, 1], a_func, 1e-1, l_func)
-    for n in d:
-        print(f"f({n}) =",b.forward(np.array(n))[-1])
-        b.clean_layers()
-    print()
-    for _ in range(5000):
+    b = Brain(2, [2,2], a_func, 1e-1, l_func)
+    #for n in d:
+    #    print(f"f({n}) =",b.forward(np.array(n))[-1])
+    #    b.clean_layers()
+    #print()
+    for _ in range(1):
         b.train(np.array(d), np.array(c))
     for n in d:
         print(f"f({n}) =",b.forward(np.array(n))[-1])

@@ -15,3 +15,6 @@ https://gombru.github.io/2018/05/23/cross_entropy_loss/
 
 Implementing Backpropagation in Python: Building a Neural Network from Scratch — Andres Berejnoi:
 https://medium.com/@andresberejnoi/how-to-implement-backpropagation-with-numpy-andres-berejnoi-e7c14f2e683a
+
+Categorical cross-entropy loss — The most important loss function:
+https://neuralthreads.medium.com/categorical-cross-entropy-loss-the-most-important-loss-function-d3792151d05b

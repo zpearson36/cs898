@@ -214,17 +214,23 @@ class Brain:
             layer_index = len(self.layers) - 1
             for layer in self.layers[::-1]:
                 d_active = np.array(layer.activated_derivative[-1])
-                print("d_active:", d_active)
+                #print("d_active:", d_active)
                 if layer_index < len(self.layers) - 1:
                     d_error = np.dot(delta, self.layers[layer_index + 1].nodes)
                     delta = d_error * d_active
                 else:
-                    delta = np.array([d_error * d_active])
+                    if self.loss.function == "categoricalCrossEntropy":
+                        #print(output[-1].shape)
+                        #print(actual.shape)
+                        delta = output[-1] - actual
+                        delta = np.reshape(delta, (delta.shape[0], 1)).T
+                    else:
+                        delta = np.array([d_error * d_active])
                 activated = np.transpose(self.layers[layer_index - 1].activated)
                 if layer_index == 0: activated = np.reshape(np.array(data), (len(data),1))
                 #if self.loss.function != "categoricalCrossEntropy":
-                print("activated:", activated.shape, "delta:",delta.shape)
-                print("activated:\n", activated, "\ndelta:\n",delta)
+                #print("activated:", activated.shape, "delta:",delta.shape)
+                #print("activated:\n", activated, "\ndelta:\n",delta)
 
                 grad_matrix = activated @ delta
                 #print("activated:\n", activated, "\ndelta:\n",delta, "\ngrad_matrix:\n",grad_matrix)
@@ -277,8 +283,10 @@ if __name__ == "__main__":
     c = xor_class
 
     layers = [
-            Layer(2, 2, ActivationFunction("relu")),
-            Layer(2, 2, ActivationFunction("softmax"))
+            Layer(5, 2, ActivationFunction("tanh")),
+            Layer(5, 5, ActivationFunction("tanh")),
+            Layer(5, 5, ActivationFunction("tanh")),
+            Layer(2, 5, ActivationFunction("softmax"))
             ]
 
 

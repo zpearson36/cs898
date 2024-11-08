@@ -18,3 +18,6 @@ https://medium.com/@andresberejnoi/how-to-implement-backpropagation-with-numpy-a
 
 Categorical cross-entropy loss — The most important loss function:
 https://neuralthreads.medium.com/categorical-cross-entropy-loss-the-most-important-loss-function-d3792151d05b
+
+Implementation of all Loss Functions (Deep Learning) in NumPy, TensorFlow, and PyTorch - Arjun Sarkar:
+https://arjun-sarkar786.medium.com/implementation-of-all-loss-functions-deep-learning-in-numpy-tensorflow-and-pytorch-e20e72626ebd

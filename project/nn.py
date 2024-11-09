@@ -1,4 +1,5 @@
 import csv
+import idx2numpy as id2np
 import numpy as np
 import random
 import time
@@ -95,7 +96,36 @@ class Data:
         print(d)
         print(type(d))
 
+class MNIST:
+    def  __init__(self):
+        self.train_images = id2np.convert_from_file("data/train-images.idx3-ubyte")
+        train_labels = id2np.convert_from_file("data/train-labels.idx1-ubyte")
+        self.train_labels = []
+        for label in train_labels:
+            val =  [0 for _ in range(10)]
+            val[label] = 1
+            self.train_labels.append(val)
 
+        self.test_images =  id2np.convert_from_file("data/t10k-images.idx3-ubyte")
+        test_labels =  id2np.convert_from_file("data/t10k-labels.idx1-ubyte")
+        self.test_labels = []
+        for label in test_labels:
+            val =  [0 for _ in range(10)]
+            val[label] = 1
+            self.test_labels.append(val)
+
+    def train(self, split=1, flatten=True):
+        train_images = self.train_images
+        if flatten:
+            train_images = train_images.reshape((train_images.shape[0], 784,))
+            
+        return train_images, self.train_labels
+
+    def test(self, flatten=True):
+        test_images = self.test_images
+        if flatten:
+            test_images = test_images.reshape((test_images.shape[0], 784,))
+        return test_images, self.test_labels
 
 class Layer:
 
@@ -165,14 +195,18 @@ class Brain:
             else:
                  output.append(layer.forward(output[-1]))
 
-        return output
+        return output[-1]
 
     def train(self, input_data, classification):
         gradients = []
+        print(input_data.shape[0])
+        step =  1
         for data, actual in zip(input_data, classification):
+            print("step",step)
+            step +=  1
             output = self.forward(data)
 
-            d_error = np.array(self.loss.derivative(output[-1], actual))
+            d_error = np.array(self.loss.derivative(output, actual))
             layer_index = len(self.layers) - 1
             for layer in self.layers[::-1]:
                 d_active = np.array(layer.activated_derivative[-1])
@@ -181,7 +215,7 @@ class Brain:
                     delta = d_error * d_active
                 else:
                     if self.loss.function == "categoricalCrossEntropy":
-                        delta = output[-1] - actual
+                        delta = output - actual
                         delta = np.reshape(delta, (delta.shape[0], 1)).T
                     else:
                         delta = np.array([d_error * d_active])
@@ -233,23 +267,38 @@ if __name__ == "__main__":
     xor_class = [[0,1],[1,0],[1,0],[0,1]]
     d = xor_data
     c = xor_class
+    mnist = MNIST()
+    train_image, train_label = mnist.train()
+    test_images, test_labels = mnist.test()
+
 
     layers = [
-            Layer(5, 2, ActivationFunction("tanh")),
-            Layer(5, 5, ActivationFunction("tanh")),
-            Layer(5, 5, ActivationFunction("tanh")),
-            Layer(2, 5, ActivationFunction("softmax"))
+            Layer(256, 784, ActivationFunction("sigmoid")),
+            Layer(512, 256, ActivationFunction("sigmoid")),
+            Layer(128, 512, ActivationFunction("sigmoid")),
+            Layer(10, 128, ActivationFunction("softmax"))
             ]
 
 
     b = Brain(layers, l_func, 1e-1)
-    for n in d:
-        print(f"f({n}) =",b.forward(np.array(n))[-1])
+    for x,y in zip(test_images[:10], test_labels[:10]):
+        out  =  list(b.forward(x))
+        guess = out.index(max(out))
+        label = y.index(1)
+        print("guess:",guess,"actual:",label)
         b.clean_layers()
-    print()
-    for _ in range(5000):
-        b.train(np.array(d), np.array(c))
-    for n in d:
-        print(f"f({n}) =",b.forward(np.array(n))[-1])
+    for _ in range(5):
+        print("epoch",_+1)
+        b.train(train_image[:100], np.array(train_label[:100]))
+    for x,y in zip(test_images[:10], test_labels[:10]):
+        out  =  list(b.forward(x))
+        guess = out.index(max(out))
+        label = y.index(1)
+        print("guess:",guess,"actual:",label)
         b.clean_layers()
-    #b.train(np.array([[1,1]]),np.array([[1]]))
+    #print()
+    #for _ in range(5000):
+    #    b.train(np.array(d), np.array(c))
+    #for n in d:
+    #    print(f"f({n}) =",b.forward(np.array(n))[-1])
+    #    b.clean_layers()

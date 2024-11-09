@@ -29,8 +29,6 @@ class ActivationFunction:
         if self.function == "tanh":
             for elmt in val:
                 retval.append((np.exp(elmt) - np.exp(-elmt)) / (np.exp(elmt) + np.exp(-elmt)))
-       # print("v:", val)
-        #print(retval)
                 
         return retval
 
@@ -47,13 +45,6 @@ class ActivationFunction:
                 retval.append(self.value([elmt])[0] * (1 - self.value([elmt])[0]))
         if self.function == "softmax":
             retval = np.array(self.value(val)) * (np.eye(np.array(val).shape[0]) - np.array(self.value(val)).T)
-#            for i, s_i in enumerate(val):
-#                retval.append([])
-#                for j, s_j in enumerate(val):
-#                    tmp = 0
-#                    if i == j:
-#                        tmp = 1
-#                    retval[i].append(s_i * (tmp - s_j))
         if self.function == "tanh":
             for elmt in val:
                 retval.append(1 - self.value([elmt])[0]**2)
@@ -76,11 +67,6 @@ class LossFunction:
             loss = np.square(measured - expected).mean()
         if self.function == "categoricalCrossEntropy":
             loss = -sum(expected * np.log(measured + 10**-100))
-#            loss = []
-#            exp = np.exp(measured)
-#            exp_sum = np.sum(exp)
-#            for guess, real in zip(exp, expected):
-#                loss.append(-np.log(exp / exp_sum))
 
         return loss
 
@@ -92,15 +78,6 @@ class LossFunction:
 
         if self.function == "categoricalCrossEntropy":
             val = -expected/(measured + 10**-100)
-#            exp = np.exp(measured)
-#            exp_sum = np.sum(exp)
-#            for guess, real in zip(exp, expected):
-#                if real == 1:
-#                    tmp = (guess / exp_sum) -  1
-#                else:
-#                    tmp = guess / exp_sum
-#                val.append(tmp)
-#                print("g:",guess,"r:",real,"t:",tmp,"v",val)
         return val
 
 
@@ -123,8 +100,7 @@ class Data:
 class Layer:
 
     def __init__(self, node_count, weight_count, a_func):
-        #self.name = f"{x}"
-        self.nodes = np.random.uniform(size=(node_count,weight_count))#np.array([[random.randrange(-1,1) for _ in range(weight_count)] for _ in range(node_count)])
+        self.nodes = np.random.uniform(size=(node_count,weight_count))
         self.activation = a_func
         self.biases = []
         for _ in range(node_count):
@@ -145,18 +121,10 @@ class Layer:
 
             self.outputs_before_activation[-1].append(sum(self.weight_contribs[i]) + self.biases[i])
 
-        #print(self.nodes.shape, ":",vals, "=>", self.outputs_before_activation[-1])
         output   = self.activation.value(self.outputs_before_activation[-1])
         d_output = self.activation.derivative(self.outputs_before_activation[-1])
         self.activated_derivative.append(d_output)
         self.activated.append(output)
-     #   print("output:  ",output)
-      #  print("d_output:",d_output)
-        #print()
-        #print("weight_contribs:", self.weight_contribs)
-        #print("unactivated:    ", len(self.outputs_before_activation))
-        #print("unactivated2:   ", self.outputs_before_activation[-1])
-        #print()
         return np.array(output)
     
     def update_weights(self, amounts):
@@ -185,12 +153,6 @@ class Brain:
         @param l_func: loss function
         '''
         self.layers = layers
-        #x = 1
-        #for layer in layers:
-        #    if len(self.layers) == 0: weight_count = params
-        #    else: weight_count = self.layers[-1].nodes.shape[0]
-        #    self.layers.append(Layer(layer, weight_count, a_func, x))
-        #    x += 1
         self.learning_rate = l_rate
         self.loss = l_func
 
@@ -214,29 +176,19 @@ class Brain:
             layer_index = len(self.layers) - 1
             for layer in self.layers[::-1]:
                 d_active = np.array(layer.activated_derivative[-1])
-                #print("d_active:", d_active)
                 if layer_index < len(self.layers) - 1:
                     d_error = np.dot(delta, self.layers[layer_index + 1].nodes)
                     delta = d_error * d_active
                 else:
                     if self.loss.function == "categoricalCrossEntropy":
-                        #print(output[-1].shape)
-                        #print(actual.shape)
                         delta = output[-1] - actual
                         delta = np.reshape(delta, (delta.shape[0], 1)).T
                     else:
                         delta = np.array([d_error * d_active])
                 activated = np.transpose(self.layers[layer_index - 1].activated)
                 if layer_index == 0: activated = np.reshape(np.array(data), (len(data),1))
-                #if self.loss.function != "categoricalCrossEntropy":
-                #print("activated:", activated.shape, "delta:",delta.shape)
-                #print("activated:\n", activated, "\ndelta:\n",delta)
 
                 grad_matrix = activated @ delta
-                #print("activated:\n", activated, "\ndelta:\n",delta, "\ngrad_matrix:\n",grad_matrix)
-                #else:
-                #    grad_matrix = []
-                #    for d in delta[0]
                 gradients.insert(0, grad_matrix)
                 layer.reset_outputs()
                 layer_index -= 1

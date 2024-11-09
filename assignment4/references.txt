@@ -1,0 +1,3 @@
+https://www.kaggle.com/code/laszlofazekas/cifar10-dcgan-example
+https://github.com/arjun-majumdar/Autoencoders_Experiments/blob/master/Variational_AutoEncoder_CIFAR10_TF2.ipynb
+https://www.kaggle.com/code/alsaniipe/image-similarity-index-ssim-analysis

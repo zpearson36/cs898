@@ -137,7 +137,7 @@ class Layer:
             self.biases.append(.5)
         self.outputs_before_activation = []
         self.activated_derivative = []
-        self.activated = []
+        self.activated = np.zeros((self.nodes.shape[0],1))
         self.weight_contribs = []
 
     def forward(self, vals):
@@ -154,8 +154,12 @@ class Layer:
         output   = self.activation.value(self.outputs_before_activation[-1])
         d_output = self.activation.derivative(self.outputs_before_activation[-1])
         self.activated_derivative.append(d_output)
-        self.activated.append(output)
-        return np.array(output)
+        output = np.array(output)
+        output = np.reshape(output, (output.shape[0], 1))
+        #print(output.shape)
+       # print(self.activated.shape)
+        self.activated += output
+        return np.reshape(output, (output.shape[0],))
     
     def update_weights(self, amounts):
         assert amounts.shape[0] == self.nodes.shape[1], "shape mismatch"
@@ -165,10 +169,15 @@ class Layer:
 
     def reset_outputs(self):
         self.outputs_before_activation = []
-        self.tmp = []
         self.weight_contribs = []
-        self.activated = []
+        self.activated = np.zeros((self.nodes.shape[0],1))
         self.activated_derivative = []
+
+    def print_outputs(self):
+        print(len(self.outputs_before_activation))
+        print(len(self.weight_contribs))
+        print(len(self.activated))
+        print(len(self.activated_derivative))
 
 
 class Brain:
@@ -184,7 +193,7 @@ class Brain:
         '''
         self.layers = layers
         self.learning_rate = l_rate
-        self.loss = l_func
+        self.loss = loss
 
     def forward(self, input_data):
         output = []
@@ -197,86 +206,96 @@ class Brain:
 
         return output[-1]
 
-    def train(self, input_data, classification):
-        gradients = []
-        print(input_data.shape[0])
-        step =  1
+    def train(self, input_data, classification, batch_size=1):
+#        batch_size  =  1
+        batch_count = 0
+        d_error = np.zeros(classification.shape[1:])
+        avg_error = np.zeros(classification.shape[1:])
+        start  = time.time()
         for data, actual in zip(input_data, classification):
-            print("step",step)
-            step +=  1
+            batch_count  += 1
             output = self.forward(data)
-
-            d_error = np.array(self.loss.derivative(output, actual))
-            layer_index = len(self.layers) - 1
-            for layer in self.layers[::-1]:
-                d_active = np.array(layer.activated_derivative[-1])
-                if layer_index < len(self.layers) - 1:
-                    d_error = np.dot(delta, self.layers[layer_index + 1].nodes)
-                    delta = d_error * d_active
-                else:
-                    if self.loss.function == "categoricalCrossEntropy":
-                        delta = output - actual
-                        delta = np.reshape(delta, (delta.shape[0], 1)).T
+            #print(data,output,actual)
+            fff = np.array(self.loss.derivative(output, actual))
+            avg_error += np.array(self.loss.derivative(output, actual))
+            #print(np.array(output).shape, fff.shape, d_error.shape)
+            d_error += fff 
+            if batch_count % batch_size == 0 or batch_count == classification.shape[0]:
+                gradients = []
+                d_error /= batch_size
+                layer_index = len(self.layers) - 1
+                for layer in self.layers[::-1]:
+                    #layer.print_outputs()
+                    d_active = np.array(layer.activated_derivative[-1])
+                    #print("d_active:",d_active.shape)
+                    if layer_index < len(self.layers) - 1:
+                        d_error = np.dot(delta, self.layers[layer_index + 1].nodes)
+                        delta = d_error * d_active
                     else:
-                        delta = np.array([d_error * d_active])
-                activated = np.transpose(self.layers[layer_index - 1].activated)
-                if layer_index == 0: activated = np.reshape(np.array(data), (len(data),1))
+                        if self.loss.function == "categoricalCrossEntropy":
+                            delta = output - actual
+                            delta = np.reshape(delta, (delta.shape[0], 1)).T
+                        else:
+                            delta = np.array([d_error * d_active])
+                    activated = self.layers[layer_index - 1].activated#np.transpose(self.layers[layer_index - 1].activated)
+                    if layer_index == 0: activated = np.reshape(np.array(data), (len(data),1))
+             #       print("delta:",delta.shape)
+              #      print("activated:", activated.shape)
 
-                grad_matrix = activated @ delta
-                gradients.insert(0, grad_matrix)
-                layer.reset_outputs()
-                layer_index -= 1
+                    grad_matrix = activated @ delta
+                    gradients.insert(0, grad_matrix)
+                    layer.reset_outputs()
+                    layer_index -= 1
+                    d_error = np.zeros(classification.shape[1:])
 
-            # SGD
-            for gradient, layer in zip(gradients, self.layers):
-                for i, row in enumerate(gradient):
-                    for j, col in enumerate(layer.nodes):
-                        col[i] -= row[j] * self.learning_rate
+                # SGD
+                for gradient, layer in zip(gradients, self.layers):
+                    for i, row in enumerate(gradient):
+                        for j, col in enumerate(layer.nodes):
+                            col[i] -= row[j] * self.learning_rate
+        print("epoch training time:",time.time() - start," - error:",avg_error / input_data.shape[0])
 
     def clean_layers(self):
         for layer in self.layers:
             layer.reset_outputs()
 
-
-if __name__ == "__main__":
-    def f(n):
-        return n**2
-    a_func = ActivationFunction("tanh")
-    l_func = LossFunction("meanSquaredError")
-    #a_func = ActivationFunction("softmax")
-    l_func = LossFunction("categoricalCrossEntropy")
-    #d = Data("../.ignore/mnist_train.csv", "csv")
-    #d.show()
-    #l = Layer(5, 3, a_func)
-    #l2 = Layer(5, 5, a_func)
-    #l3 = Layer(1, 5, a_func)
-
-    #print(l.nodes)
-    #output1 = l.forward(np.array([1,1,1]))
-    #output2 = l2.forward(output1)
-    #output3 = l3.forward(output2)
-
-    #print(output1)
-    #print(output2.shape)
-    #print(output3)
-    _range = range(100)
-    d = [[random.choice(_range)] for _ in range(50)]
-    c = [[f(n[0])] for n  in d]
-
+def test_xor():
     xor_data = [[0,0],[0,1],[1,0],[1,1]]
     xor_class = [[0,1],[1,0],[1,0],[0,1]]
     d = xor_data
     c = xor_class
+    layers = [
+            Layer(5, 2, ActivationFunction("tanh")),
+            Layer(5, 5, ActivationFunction("tanh")),
+            Layer(5, 5, ActivationFunction("tanh")),
+            Layer(2, 5, ActivationFunction("softmax"))
+            ]
+    b = Brain(layers, LossFunction("categoricalCrossEntropy"), 1e-1)
+    for n in d:
+        print(f"f({n}) =",b.forward(np.array(n)))
+        b.clean_layers()
+    for _ in range(5000):
+        b.train(np.array(d), np.array(c))
+    for n in d:
+        print(f"f({n}) =",b.forward(np.array(n)))
+        b.clean_layers()
+
+
+if __name__ == "__main__":
+    # sanity check
+    # test_xor()
+    l_func = LossFunction("categoricalCrossEntropy")
+
     mnist = MNIST()
     train_image, train_label = mnist.train()
     test_images, test_labels = mnist.test()
 
 
     layers = [
-            Layer(256, 784, ActivationFunction("sigmoid")),
-            Layer(512, 256, ActivationFunction("sigmoid")),
-            Layer(128, 512, ActivationFunction("sigmoid")),
-            Layer(10, 128, ActivationFunction("softmax"))
+            Layer(100, 784, ActivationFunction("sigmoid")),
+            Layer(50, 100,  ActivationFunction("sigmoid")),
+            #Layer(32, 64,   ActivationFunction("sigmoid")),
+            Layer(10, 50, ActivationFunction("softmax"))
             ]
 
 
@@ -287,18 +306,14 @@ if __name__ == "__main__":
         label = y.index(1)
         print("guess:",guess,"actual:",label)
         b.clean_layers()
-    for _ in range(5):
+    start = time.time()
+    for _ in range(10):
         print("epoch",_+1)
-        b.train(train_image[:100], np.array(train_label[:100]))
+        b.train(train_image[:1000], np.array(train_label[:1000]))
+    print("total training time:", time.time() - start)
     for x,y in zip(test_images[:10], test_labels[:10]):
         out  =  list(b.forward(x))
         guess = out.index(max(out))
         label = y.index(1)
         print("guess:",guess,"actual:",label)
         b.clean_layers()
-    #print()
-    #for _ in range(5000):
-    #    b.train(np.array(d), np.array(c))
-    #for n in d:
-    #    print(f"f({n}) =",b.forward(np.array(n))[-1])
-    #    b.clean_layers()

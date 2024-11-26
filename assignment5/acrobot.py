@@ -67,7 +67,7 @@ class DeepQAgent:
         self.t.set_weights(self.q.get_weights())
 
 
-e = gym.make('CartPole-v1', render_mode="human")
+e = gym.make('Acrobot-v1', render_mode="human")
 agent = DeepQAgent(e.action_space, e.observation_space.shape)
 obs, info = e.reset()
 for _ in range(1):
@@ -76,7 +76,7 @@ for _ in range(1):
     if term: e.reset()
 obs, info = e.reset()
 e.close()
-e = gym.make('CartPole-v1')
+e = gym.make('Acrobot-v1')
 state, info = e.reset()
 batch_size = 128
 for _ in range(batch_size):
@@ -132,7 +132,7 @@ plt.title("Average Reward per Episode")
 plt.subplots_adjust(hspace=.5)
 plt.savefig('deepq.png')
 plt.show()
-e = gym.make('CartPole-v1', render_mode="human")
+e = gym.make('Acrobot-v1', render_mode="human")
 obs, info = e.reset()
 for _ in range(1000):
     action = agent.choose_action(obs)

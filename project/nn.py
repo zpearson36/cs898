@@ -81,21 +81,6 @@ class LossFunction:
             val = -expected/(measured + 10**-100)
         return val
 
-
-
-class Data:
-    data_formats = ["csv"]
-
-    def __init__(self, data_dir, data_format):
-        assert data_format in self.data_formats
-        self.data_dir = data_dir
-        self.format = data_format
-
-    def show(self):
-        d = np.genfromtxt(self.data_dir, delimiter=",")
-        print(d)
-        print(type(d))
-
 class MNIST:
     def  __init__(self):
         self.train_images = id2np.convert_from_file("data/train-images.idx3-ubyte")
@@ -119,18 +104,21 @@ class MNIST:
         if flatten:
             train_images = train_images.reshape((train_images.shape[0], 784,))
             
-        return train_images, self.train_labels
+        return train_images / 255, self.train_labels
 
     def test(self, flatten=True):
         test_images = self.test_images
         if flatten:
             test_images = test_images.reshape((test_images.shape[0], 784,))
-        return test_images, self.test_labels
+        return test_images / 255, self.test_labels
 
 class Layer:
 
-    def __init__(self, node_count, weight_count, a_func):
-        self.nodes = np.random.uniform(size=(node_count,weight_count))
+    def __init__(self, node_count, weight_count, a_func, initialize="r_uniform", regularizer=1):
+        if initialize == "r_uniform": self.nodes = np.random.uniform(size=(node_count,weight_count)) / regularizer
+        if initialize == "r_normal": self.nodes = np.random.normal(size=(node_count,weight_count)) / regularizer
+        if initialize == "ones": self.nodes = np.ones((node_count,weight_count))
+        if initialize == "zeros": self.nodes = np.zeros((node_count,weight_count))
         self.activation = a_func
         self.biases = []
         for _ in range(node_count):
@@ -206,7 +194,7 @@ class Brain:
 
         return output[-1]
 
-    def train(self, input_data, classification, batch_size=1):
+    def train(self, input_data, classification, batch_size=1, verbose=True):
 #        batch_size  =  1
         batch_count = 0
         d_error = np.zeros(classification.shape[1:])
@@ -214,8 +202,17 @@ class Brain:
         start  = time.time()
         for data, actual in zip(input_data, classification):
             batch_count  += 1
+            if verbose:
+                percent = batch_count/len(input_data)  * 100
+                progress = "Training Progress: <"
+                progress += "|" * int(percent)
+                progress += "-" *  (100-int(percent))
+                progress  += ">"
+                print(progress, "{:.1f}% - error: {:.3f}".format(percent, sum(list(avg_error/input_data.shape[0])) / 10),end="\r")
             output = self.forward(data)
             #print(data,output,actual)
+            #print(output,actual)
+            #print(output)
             fff = np.array(self.loss.derivative(output, actual))
             avg_error += np.array(self.loss.derivative(output, actual))
             #print(np.array(output).shape, fff.shape, d_error.shape)
@@ -253,7 +250,7 @@ class Brain:
                     for i, row in enumerate(gradient):
                         for j, col in enumerate(layer.nodes):
                             col[i] -= row[j] * self.learning_rate
-        print("epoch training time:",time.time() - start," - error:",avg_error / input_data.shape[0])
+        if verbose: print("\nepoch training time:",time.time() - start," - error:",avg_error / input_data.shape[0])
 
     def clean_layers(self):
         for layer in self.layers:
@@ -261,29 +258,31 @@ class Brain:
 
 def test_xor():
     xor_data = [[0,0],[0,1],[1,0],[1,1]]
-    xor_class = [[0,1],[1,0],[1,0],[0,1]]
+    #xor_class = [[0,1],[1,0],[1,0],[0,1]]
+    xor_class = [[0],[1],[1],[0]]
     d = xor_data
     c = xor_class
     layers = [
             Layer(5, 2, ActivationFunction("tanh")),
             Layer(5, 5, ActivationFunction("tanh")),
             Layer(5, 5, ActivationFunction("tanh")),
-            Layer(2, 5, ActivationFunction("softmax"))
+            Layer(1, 5, ActivationFunction("sigmoid"))
             ]
     b = Brain(layers, LossFunction("categoricalCrossEntropy"), 1e-1)
     for n in d:
         print(f"f({n}) =",b.forward(np.array(n)))
         b.clean_layers()
     for _ in range(5000):
-        b.train(np.array(d), np.array(c))
+        b.train(np.array(d), np.array(c), batch_size=100, verbose=False)
     for n in d:
         print(f"f({n}) =",b.forward(np.array(n)))
         b.clean_layers()
+    exit()
 
 
 if __name__ == "__main__":
     # sanity check
-    # test_xor()
+    test_xor()
     l_func = LossFunction("categoricalCrossEntropy")
 
     mnist = MNIST()
@@ -292,14 +291,14 @@ if __name__ == "__main__":
 
 
     layers = [
-            Layer(100, 784, ActivationFunction("sigmoid")),
-            Layer(50, 100,  ActivationFunction("sigmoid")),
-            #Layer(32, 64,   ActivationFunction("sigmoid")),
-            Layer(10, 50, ActivationFunction("softmax"))
+            Layer(100, 784, ActivationFunction("relu"), initialize='r_normal', regularizer=10),
+            Layer(50, 100,  ActivationFunction("relu"), initialize='r_normal',  regularizer=10),
+           # Layer(64, 128,   ActivationFunction("sigmoid")),
+            Layer(10, 50, ActivationFunction("softmax"), initialize='r_normal',  regularizer=10)
             ]
 
 
-    b = Brain(layers, l_func, 1e-1)
+    b = Brain(layers, l_func, l_rate=.001)
     for x,y in zip(test_images[:10], test_labels[:10]):
         out  =  list(b.forward(x))
         guess = out.index(max(out))
@@ -308,7 +307,7 @@ if __name__ == "__main__":
         b.clean_layers()
     start = time.time()
     for _ in range(10):
-        print("epoch",_+1)
+        #print("epoch",_+1)
         b.train(train_image[:1000], np.array(train_label[:1000]))
     print("total training time:", time.time() - start)
     for x,y in zip(test_images[:10], test_labels[:10]):

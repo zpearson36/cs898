@@ -219,7 +219,7 @@ class Brain:
             d_error += fff 
             if batch_count % batch_size == 0 or batch_count == classification.shape[0]:
                 gradients = []
-                d_error /= batch_size
+                d_error /= batch_count
                 layer_index = len(self.layers) - 1
                 for layer in self.layers[::-1]:
                     #layer.print_outputs()
@@ -250,6 +250,7 @@ class Brain:
                     for i, row in enumerate(gradient):
                         for j, col in enumerate(layer.nodes):
                             col[i] -= row[j] * self.learning_rate
+                batch_count == 0
         if verbose: print("\nepoch training time:",time.time() - start," - error:",avg_error / input_data.shape[0])
 
     def clean_layers(self):
@@ -273,7 +274,7 @@ def test_xor():
         print(f"f({n}) =",b.forward(np.array(n)))
         b.clean_layers()
     for _ in range(5000):
-        b.train(np.array(d), np.array(c), batch_size=100, verbose=False)
+        b.train(np.array(d), np.array(c), batch_size=1, verbose=False)
     for n in d:
         print(f"f({n}) =",b.forward(np.array(n)))
         b.clean_layers()

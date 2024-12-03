@@ -182,6 +182,8 @@ class Brain:
         self.layers = layers
         self.learning_rate = l_rate
         self.loss = loss
+        self.epoch_error = []
+        self.epoch_accuracy =[]
 
     def forward(self, input_data):
         output = []
@@ -194,27 +196,31 @@ class Brain:
 
         return output[-1]
 
-    def train(self, input_data, classification, batch_size=1, verbose=True):
-#        batch_size  =  1
+    def train(self, input_data, classification, batch_size=1, verbose=True, split=0.0):
         batch_count = 0
         d_error = np.zeros(classification.shape[1:])
         avg_error = np.zeros(classification.shape[1:])
         start  = time.time()
+        validation = []
         for data, actual in zip(input_data, classification):
-            batch_count  += 1
+            if np.random.rand(1)[0] < split:
+                validation.append((data, actual))
+                continue
             if verbose:
                 percent = batch_count/len(input_data)  * 100
                 progress = "Training Progress: <"
                 progress += "|" * int(percent)
                 progress += "-" *  (100-int(percent))
                 progress  += ">"
-                print(progress, "{:.1f}% - error: {:.3f}".format(percent, sum(list(avg_error/input_data.shape[0])) / 10),end="\r")
+#                print(progress, "{:.1f}% - error: {:.3f}".format(percent, sum(list(avg_error/input_data.shape[0])) / 10),end="\r")
+                print(progress, "{:.1f}% - error: {:.3f} - val_accuracy: {:.3f} - {:.3f}".format(percent, sum(list(avg_error/input_data.shape[0])) / 10, 0.0, time.time() - start),end="\r")
+            batch_count  += 1
             output = self.forward(data)
             #print(data,output,actual)
             #print(output,actual)
             #print(output)
             fff = np.array(self.loss.derivative(output, actual))
-            avg_error += np.array(self.loss.derivative(output, actual))
+            avg_error += np.array(self.loss.value(output, actual))
             #print(np.array(output).shape, fff.shape, d_error.shape)
             d_error += fff 
             if batch_count % batch_size == 0 or batch_count == classification.shape[0]:
@@ -251,7 +257,30 @@ class Brain:
                         for j, col in enumerate(layer.nodes):
                             col[i] -= row[j] * self.learning_rate
                 batch_count == 0
-        if verbose: print("\nepoch training time:",time.time() - start," - error:",avg_error / input_data.shape[0])
+        num_correct = 0
+        val =  0
+        for data, actual in validation:
+            val += 1
+            if verbose:
+                percent = (batch_count+val)/len(input_data)  * 100
+                progress = "Training Progress: <"
+                progress += "|" * int(percent)
+                progress += "-" *  (100-int(percent))
+                progress  += ">"
+                print(progress, "{:.1f}% - error: {:.3f} - val_accuracy: {:.3f} - {:.3f}".format(percent, sum(list(avg_error/input_data.shape[0])) / 10, num_correct / len(validation), time.time() - start),end="\r")
+            out = list(self.forward(data))
+            guess = out.index(max(out))
+            label = list(actual).index(1)
+            if guess == label: num_correct += 1
+            self.clean_layers()
+        self.epoch_error.append(sum(list(avg_error / input_data.shape[0])) / 10)
+        self.epoch_accuracy.append(num_correct / len(validation))
+        if verbose: print("\nepoch training time:",time.time() - start,
+                          "- error: {:.2f}  - validation accuracy: {:.2f}".format(
+                              sum(list(avg_error / input_data.shape[0])) / 10,
+                              num_correct / len(validation)
+                              ))
+
 
     def clean_layers(self):
         for layer in self.layers:
@@ -283,7 +312,7 @@ def test_xor():
 
 if __name__ == "__main__":
     # sanity check
-    test_xor()
+    # test_xor()
     l_func = LossFunction("categoricalCrossEntropy")
 
     mnist = MNIST()
@@ -307,13 +336,31 @@ if __name__ == "__main__":
         print("guess:",guess,"actual:",label)
         b.clean_layers()
     start = time.time()
-    for _ in range(10):
+    for _ in range(1):
         #print("epoch",_+1)
-        b.train(train_image[:1000], np.array(train_label[:1000]))
+        b.train(train_image, np.array(train_label), split=0.2)
     print("total training time:", time.time() - start)
-    for x,y in zip(test_images[:10], test_labels[:10]):
+    for x,y in zip(test_images[:25], test_labels[:25]):
         out  =  list(b.forward(x))
         guess = out.index(max(out))
         label = y.index(1)
         print("guess:",guess,"actual:",label)
         b.clean_layers()
+    import matplotlib.pyplot as plt
+    plt.subplot(2,1,1)
+    plt.plot(np.linspace(1, len(b.epoch_error), num=len(b.epoch_accuracy)), b.epoch_error)
+    plt.title("Training Error per Epoch")
+    plt.subplot(2,1,2)
+    plt.plot(np.linspace(1, len(b.epoch_accuracy), num=len(b.epoch_accuracy)), b.epoch_accuracy)
+    plt.title("Validation Accuracy per Epoch")
+    plt.subplots_adjust(hspace=.5)
+    plt.savefig("plot.png")
+
+    num_correct = 0
+    for x,y in zip(test_images, test_labels):
+        out  =  list(b.forward(x))
+        guess = out.index(max(out))
+        label = y.index(1)
+        if guess == label: num_correct += 1
+        b.clean_layers()
+    print("Accuracy: {:.2f}".format((num_correct / len(test_images))*100))

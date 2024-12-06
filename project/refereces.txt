@@ -12,3 +12,12 @@ https://eli.thegreenplace.net/2016/the-softmax-function-and-its-derivative/
 
 understanding catgorical cross entropy:
 https://gombru.github.io/2018/05/23/cross_entropy_loss/
+
+Implementing Backpropagation in Python: Building a Neural Network from Scratch — Andres Berejnoi:
+https://medium.com/@andresberejnoi/how-to-implement-backpropagation-with-numpy-andres-berejnoi-e7c14f2e683a
+
+Categorical cross-entropy loss — The most important loss function:
+https://neuralthreads.medium.com/categorical-cross-entropy-loss-the-most-important-loss-function-d3792151d05b
+
+Implementation of all Loss Functions (Deep Learning) in NumPy, TensorFlow, and PyTorch - Arjun Sarkar:
+https://arjun-sarkar786.medium.com/implementation-of-all-loss-functions-deep-learning-in-numpy-tensorflow-and-pytorch-e20e72626ebd

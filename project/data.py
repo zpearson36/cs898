@@ -87,7 +87,7 @@ if __name__ == "__main__":
     d.load_data()
     d.split_data(.8)
     train_x, train_y, test_x, test_y = d.get_data()
-    print(train_x[0].shape)
+    print(train_x)
     x = train_x[0].shape[0] - 220
     y = train_x[0].shape[1] - 220
     if x: tx = random.randrange(0, x)
